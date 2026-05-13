@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <title>Drone Point Cloud</title>
+
+    <link rel="stylesheet" href="vendor/potree/potree.css" />
+    <link rel="stylesheet" href="vendor/libs/jquery-ui/jquery-ui.min.css" />
+    <link rel="stylesheet" href="vendor/libs/openlayers3/ol.css" />
+    <link rel="stylesheet" href="vendor/libs/spectrum/spectrum.css" />
+    <link rel="stylesheet" href="vendor/libs/jstree/themes/mixed/style.css" />
+
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #101412;
+        color: #f5f2ea;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .potree_container {
+        position: absolute;
+        inset: 0;
+      }
+
+      #potree_render_area {
+        background: #101412;
+      }
+
+      .topbar {
+        position: fixed;
+        top: 12px;
+        left: 392px;
+        right: 12px;
+        z-index: 10;
+        display: flex;
+        min-height: 42px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 10px;
+        border: 1px solid rgba(245, 242, 234, 0.14);
+        border-radius: 8px;
+        background: rgba(20, 26, 24, 0.82);
+        backdrop-filter: blur(12px);
+        pointer-events: none;
+      }
+
+      .topbar strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+      }
+
+      .topbar span {
+        flex: 0 0 auto;
+        color: #b9c6ba;
+        font-size: 12px;
+      }
+
+      .empty {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: none;
+        place-items: center;
+        padding: 24px;
+        background: #101412;
+      }
+
+      .empty.visible {
+        display: grid;
+      }
+
+      .empty-card {
+        width: min(680px, 100%);
+        padding: 22px;
+        border: 1px solid rgba(245, 242, 234, 0.16);
+        border-radius: 8px;
+        background: #171d1a;
+      }
+
+      .empty-card h1 {
+        margin: 0 0 10px;
+        font-size: 20px;
+      }
+
+      .empty-card code {
+        display: block;
+        overflow-x: auto;
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 6px;
+        background: rgba(245, 242, 234, 0.08);
+        color: #d7f3da;
+        white-space: nowrap;
+      }
+
+      @media (max-width: 760px) {
+        .topbar {
+          left: 12px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <script src="vendor/libs/jquery/jquery-3.1.1.min.js"></script>
+    <script src="vendor/libs/spectrum/spectrum.js"></script>
+    <script src="vendor/libs/jquery-ui/jquery-ui.min.js"></script>
+    <script src="vendor/libs/other/BinaryHeap.js"></script>
+    <script src="vendor/libs/tween/tween.min.js"></script>
+    <script src="vendor/libs/d3/d3.js"></script>
+    <script src="vendor/libs/proj4/proj4.js"></script>
+    <script src="vendor/libs/openlayers3/ol.js"></script>
+    <script src="vendor/libs/i18next/i18next.js"></script>
+    <script src="vendor/libs/jstree/jstree.js"></script>
+    <script src="vendor/potree/potree.js"></script>
+    <script src="vendor/libs/plasio/js/laslaz.js"></script>
+
+    <div class="potree_container">
+      <div id="potree_render_area"></div>
+      <div id="potree_sidebar_container"></div>
+    </div>
+
+    <div class="topbar">
+      <strong id="title">Drone Point Cloud</strong>
+      <span id="status">Loading</span>
+    </div>
+
+    <div class="empty" id="emptyState">
+      <div class="empty-card">
+        <h1>Point cloud URL required</h1>
+        <p>Open this page with a Potree 2.0 metadata URL.</p>
+        <code>pointcloud.html?cloud=https://example.com/F01_F02_01_group1_densified_point_cloud_part_1_converted/metadata.json</code>
+      </div>
+    </div>
+
+    <script type="module">
+      const params = new URLSearchParams(window.location.search);
+      const cloudUrl = params.get("cloud") || window.POINT_CLOUD_URL || "";
+      const title = params.get("name") || "Bang Tao Mae Point Cloud";
+      const status = document.querySelector("#status");
+      const emptyState = document.querySelector("#emptyState");
+      document.querySelector("#title").textContent = title;
+
+      window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
+
+      viewer.setEDLEnabled(true);
+      viewer.setFOV(55);
+      viewer.setPointBudget(4_000_000);
+      viewer.loadSettingsFromURL();
+      viewer.setBackground("black");
+      viewer.setDescription("");
+
+      viewer.loadGUI(() => {
+        viewer.setLanguage("en");
+        $("#menu_appearance").next().show();
+        $("#menu_tools").next().show();
+        $("#menu_clipping").next().show();
+      });
+
+      if (!cloudUrl) {
+        status.textContent = "Waiting for URL";
+        emptyState.classList.add("visible");
+      } else {
+        status.textContent = "Loading point cloud";
+        let expectedPoints = null;
+        fetch(cloudUrl)
+          .then((response) => response.ok ? response.json() : null)
+          .then((metadata) => {
+            expectedPoints = metadata?.points || null;
+            if (expectedPoints) status.textContent = `${expectedPoints.toLocaleString()} points`;
+          })
+          .catch(() => {});
+
+        Potree.loadPointCloud(cloudUrl, title, (event) => {
+          const pointcloud = event.pointcloud;
+          const material = pointcloud.material;
+
+          material.activeAttributeName = "rgba";
+          material.size = 1;
+          material.minSize = 2;
+          material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+          material.shape = Potree.PointShape.CIRCLE;
+
+          viewer.scene.addPointCloud(pointcloud);
+          viewer.setCameraMode(Potree.CameraMode.ORTHOGRAPHIC);
+          viewer.setTopView();
+          viewer.fitToScreen();
+          const points = pointcloud.pcoGeometry?.numPoints || pointcloud.numPoints;
+          status.textContent = (points || expectedPoints) ? `${(points || expectedPoints).toLocaleString()} points` : "Ready";
+        });
+      }
+    </script>
+  </body>
+</html>
