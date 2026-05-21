@@ -4,6 +4,8 @@ ieat/
 2_mosaic 2/
 3d_mesh_pointcloud/
 tools/
+.deploy/
+.wrangler/
 webmesh/assets/F01_F02_01_mesh_preview_300k.glb
 webmesh/assets/F01_F02_01_texture_4096.jpg
 webmesh/assets/bangchan-las-preview/

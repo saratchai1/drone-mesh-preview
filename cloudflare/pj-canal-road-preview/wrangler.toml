@@ -1,0 +1,9 @@
+name = "pj-canal-road-preview"
+main = "src/worker.js"
+compatibility_date = "2026-05-21"
+workers_dev = true
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "drone-pointcloud"
+
