@@ -2,6 +2,7 @@
   const params = new URLSearchParams(window.location.search);
   const dataRoot = params.get("data") || "./assets/bangchan-las-preview";
   const title = params.get("name") || "LAS Point Cloud";
+  const assetVersion = params.get("v") || "";
 
   const canvas = document.querySelector("#scene");
   const previewTitle = document.querySelector("#previewTitle");
@@ -40,18 +41,35 @@
   }
 
   function resolveDataUrl(file) {
-    return new URL(`${dataRoot.replace(/\/$/, "")}/${file}`, window.location.href).href;
+    const url = new URL(`${dataRoot.replace(/\/$/, "")}/${file}`, window.location.href);
+    if (assetVersion) url.searchParams.set("v", assetVersion);
+    return url.href;
   }
 
-  async function fetchBinary(url) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${url} returned ${response.status}`);
-    return response.arrayBuffer();
+  async function fetchBinary(url, retries = 2) {
+    let lastError = null;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      try {
+        const response = await fetch(url, { cache: "force-cache" });
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`.trim());
+        return response.arrayBuffer();
+      } catch (error) {
+        lastError = error;
+        if (attempt < retries) {
+          await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+        }
+      }
+    }
+    throw new Error(`${url} failed: ${lastError?.message || "Failed to fetch"}`);
   }
 
-  async function fetchBinaryParts(files) {
+  async function fetchBinaryParts(files, label) {
     const fileList = Array.isArray(files) ? files : [files];
-    const buffers = await Promise.all(fileList.map((file) => fetchBinary(resolveDataUrl(file))));
+    const buffers = [];
+    for (let index = 0; index < fileList.length; index += 1) {
+      setStatus("Loading points", `Downloading ${label} ${index + 1}/${fileList.length}...`, "loading");
+      buffers.push(await fetchBinary(resolveDataUrl(fileList[index])));
+    }
     const totalBytes = buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0);
     const merged = new Uint8Array(totalBytes);
     let offset = 0;
@@ -92,8 +110,8 @@
       setStatus("Loading points", "Downloading preview buffers...", "loading");
 
       const [positionsBuffer, colorsBuffer] = await Promise.all([
-        fetchBinaryParts(metadata.files.positions),
-        fetchBinaryParts(metadata.files.colors),
+        fetchBinaryParts(metadata.files.positions, "positions"),
+        fetchBinaryParts(metadata.files.colors, "colors"),
       ]);
 
       const positions = new Float32Array(positionsBuffer);

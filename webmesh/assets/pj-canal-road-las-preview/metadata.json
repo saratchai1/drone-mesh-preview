@@ -1,6 +1,6 @@
 {
   "source": "pj_canal_road_all.las",
-  "generatedAt": "2026-05-21T14:53:14.522Z",
+  "generatedAt": "2026-05-21T15:43:16.100Z",
   "format": "las-sampled-preview-v1",
   "las": {
     "version": "1.2",
@@ -29,27 +29,32 @@
     }
   },
   "originalPoints": 203459027,
-  "sampledPoints": 4962416,
-  "sampleStride": 41,
+  "sampledPoints": 1994697,
+  "sampleStride": 102,
   "center": [
     470744.604,
     949741.951,
     103.801
   ],
   "sampledBounds": {
-    "minX": -1492.350999999966,
-    "minY": -73.122,
-    "minZ": -1660.9980000000214,
-    "maxX": 1492.3649999999907,
-    "maxY": 79.39300000000001,
-    "maxZ": 1661.6210000000428
+    "minX": -1492.0629999999655,
+    "minY": -71.875,
+    "minZ": -1660.746999999974,
+    "maxX": 1492.225000000035,
+    "maxY": 79.271,
+    "maxZ": 1661.3070000000298
   },
   "files": {
     "positions": [
       "positions-000.bin",
       "positions-001.bin",
-      "positions-002.bin"
+      "positions-002.bin",
+      "positions-003.bin",
+      "positions-004.bin"
     ],
-    "colors": "colors.bin"
+    "colors": [
+      "colors-000.bin",
+      "colors-001.bin"
+    ]
   }
 }

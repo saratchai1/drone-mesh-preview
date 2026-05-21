@@ -1,6 +1,6 @@
 const PREFIX = "pj-canal-road-web";
 const DEFAULT_VIEWER =
-  "/las-preview.html?data=assets/pj-canal-road-las-preview&name=PJ%20Canal%20Road%20Point%20Cloud";
+  "/las-preview.html?data=assets/pj-canal-road-las-preview&name=PJ%20Canal%20Road%20Point%20Cloud&v=4";
 
 const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -30,7 +30,7 @@ export default {
     object.writeHttpMetadata(headers);
     headers.set("etag", object.httpEtag);
     headers.set("access-control-allow-origin", "*");
-    headers.set("cache-control", "public, max-age=3600");
+    headers.set("cache-control", cacheControl(url.pathname));
 
     if (!headers.has("content-type")) {
       headers.set("content-type", contentType(url.pathname));
@@ -49,3 +49,7 @@ function contentType(pathname) {
   return CONTENT_TYPES[match?.[0]] || "application/octet-stream";
 }
 
+function cacheControl(pathname) {
+  if (pathname.endsWith(".bin")) return "public, max-age=31536000, immutable";
+  return "no-cache";
+}

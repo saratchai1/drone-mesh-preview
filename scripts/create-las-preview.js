@@ -67,7 +67,7 @@ function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
-function writeChunkedFile(dir, baseName, buffer, chunkSize = 20 * 1024 * 1024) {
+function writeChunkedFile(dir, baseName, buffer, chunkSize = 5 * 1024 * 1024) {
   if (buffer.byteLength <= chunkSize) {
     const fileName = `${baseName}.bin`;
     fs.writeFileSync(path.join(dir, fileName), buffer);
