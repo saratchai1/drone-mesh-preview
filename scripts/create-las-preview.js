@@ -67,6 +67,22 @@ function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
+function writeChunkedFile(dir, baseName, buffer, chunkSize = 20 * 1024 * 1024) {
+  if (buffer.byteLength <= chunkSize) {
+    const fileName = `${baseName}.bin`;
+    fs.writeFileSync(path.join(dir, fileName), buffer);
+    return fileName;
+  }
+
+  const files = [];
+  for (let offset = 0, index = 0; offset < buffer.byteLength; offset += chunkSize, index += 1) {
+    const fileName = `${baseName}-${String(index).padStart(3, "0")}.bin`;
+    fs.writeFileSync(path.join(dir, fileName), buffer.subarray(offset, offset + chunkSize));
+    files.push(fileName);
+  }
+  return files;
+}
+
 const header = readHeader(input);
 const rgbOffsets = colorOffsets(header.pointFormat);
 const stride = Math.max(1, Math.ceil(header.pointCount / targetPoints));
@@ -78,13 +94,9 @@ const center = [
 ];
 
 ensureDir(outputDir);
-const positionsPath = path.join(outputDir, "positions.bin");
-const colorsPath = path.join(outputDir, "colors.bin");
 const metadataPath = path.join(outputDir, "metadata.json");
 
 const inputFd = fs.openSync(input, "r");
-const posFd = fs.openSync(positionsPath, "w");
-const colorFd = fs.openSync(colorsPath, "w");
 
 const chunkBytesTarget = 64 * 1024 * 1024;
 const chunkRecords = Math.max(1, Math.floor(chunkBytesTarget / header.recordLength));
@@ -155,13 +167,12 @@ try {
     }
   }
 
-  fs.writeSync(posFd, positionOut.subarray(0, written * 12));
-  fs.writeSync(colorFd, colorOut.subarray(0, written * 3));
 } finally {
   fs.closeSync(inputFd);
-  fs.closeSync(posFd);
-  fs.closeSync(colorFd);
 }
+
+const positionFiles = writeChunkedFile(outputDir, "positions", positionOut.subarray(0, written * 12));
+const colorFiles = writeChunkedFile(outputDir, "colors", colorOut.subarray(0, written * 3));
 
 const metadata = {
   source: path.basename(input),
@@ -174,8 +185,8 @@ const metadata = {
   center,
   sampledBounds,
   files: {
-    positions: "positions.bin",
-    colors: "colors.bin",
+    positions: positionFiles,
+    colors: colorFiles,
   },
 };
 

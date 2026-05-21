@@ -1,8 +1,10 @@
 (function () {
   const params = new URLSearchParams(window.location.search);
   const dataRoot = params.get("data") || "./assets/bangchan-las-preview";
+  const title = params.get("name") || "LAS Point Cloud";
 
   const canvas = document.querySelector("#scene");
+  const previewTitle = document.querySelector("#previewTitle");
   const subtitle = document.querySelector("#subtitle");
   const status = document.querySelector("#status");
   const statusText = document.querySelector("#statusText");
@@ -11,6 +13,7 @@
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0d1110);
+  previewTitle.textContent = title;
 
   const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.5, 12000);
   camera.position.set(1200, 900, 1600);
@@ -46,6 +49,19 @@
     return response.arrayBuffer();
   }
 
+  async function fetchBinaryParts(files) {
+    const fileList = Array.isArray(files) ? files : [files];
+    const buffers = await Promise.all(fileList.map((file) => fetchBinary(resolveDataUrl(file))));
+    const totalBytes = buffers.reduce((sum, buffer) => sum + buffer.byteLength, 0);
+    const merged = new Uint8Array(totalBytes);
+    let offset = 0;
+    for (const buffer of buffers) {
+      merged.set(new Uint8Array(buffer), offset);
+      offset += buffer.byteLength;
+    }
+    return merged.buffer;
+  }
+
   function fitCamera() {
     if (!bounds) return;
     const min = new THREE.Vector3(bounds.minX, bounds.minY, bounds.minZ);
@@ -76,8 +92,8 @@
       setStatus("Loading points", "Downloading preview buffers...", "loading");
 
       const [positionsBuffer, colorsBuffer] = await Promise.all([
-        fetchBinary(resolveDataUrl(metadata.files.positions)),
-        fetchBinary(resolveDataUrl(metadata.files.colors)),
+        fetchBinaryParts(metadata.files.positions),
+        fetchBinaryParts(metadata.files.colors),
       ]);
 
       const positions = new Float32Array(positionsBuffer);
